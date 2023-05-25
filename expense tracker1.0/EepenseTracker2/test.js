@@ -4,6 +4,7 @@ var description = document.querySelector("#description");
 var category = document.querySelector("#category");
 var form = document.querySelector("#expense-form");
 var expenseList = document.querySelector("#expense-list");
+
 function populateUserList(response) {
   expenseList.innerHTML = "";
 
@@ -14,40 +15,79 @@ function populateUserList(response) {
         <span>${user.amount}</span>
         <span>${user.description}</span>
         <span>${user.category}</span>
-        <button class="delete-btn" data-id="${user._id}">&#10006;</button>
+        <div>
+          <button class="delete-btn" data-id="${user._id}">&#10006;</button>
+          <i class="edit-icon" data-id="${user._id}">&#9998;</i>
+        </div>
       `;
       expenseList.appendChild(li);
     });
 
- 
     var deleteButtons = document.querySelectorAll(".delete-btn");
     deleteButtons.forEach(function (button) {
-      button.addEventListener("click", deleteUser);
+      button.addEventListener("click", deleteExpense);
+    });
+
+    var editIcons = document.querySelectorAll(".edit-icon");
+    editIcons.forEach(function (editIcon) {
+      editIcon.addEventListener("click", editExpense);
     });
   }
 }
 
-function deleteUser(e) {
+function deleteExpense(e) {
   var userId = e.target.dataset.id;
 
-  axios.delete(`https://crudcrud.com/api/98728a5fa17c4ccaa3f3a4c425efede3/endpoint/${userId}`)
+  axios
+    .delete(`https://crudcrud.com/api/f695b7eb9a844a62895167846f6975a8/endpoint/${userId}`)
     .then((response) => {
       console.log(response);
-      e.target.parentElement.remove(); // Removed the user detail from the website
-      displayData()
+      e.target.parentElement.parentElement.remove(); // Remove the expense detail from the website
+      deleteFromBackend(userId); // Delete the expense from the backend as well
     })
     .catch((err) => {
       console.log(err);
     });
 }
 
-// ...
+function deleteFromBackend(userId) {
+  axios
+    .delete(`https://crudcrud.com/api/f695b7eb9a844a62895167846f6975a8/endpoint/${userId}`)
+    .then((response) => {
+      console.log(response);
+      displayData();
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
 
+function editExpense(e) {
+  var userId = e.target.dataset.id;
+
+  axios
+    .get(`https://crudcrud.com/api/f695b7eb9a844a62895167846f6975a8/endpoint/${userId}`)
+    .then((response) => {
+      var expense = response.data;
+
+      // Populate the form with the expense details
+      amount.value = expense.amount;
+      description.value = expense.description;
+      category.value = expense.category;
+
+      // Set the user ID as an attribute of the form
+      form.setAttribute("data-id", userId);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
 
 window.addEventListener("DOMContentLoaded", displayData);
 
 function displayData() {
-  axios.get('https://crudcrud.com/api/98728a5fa17c4ccaa3f3a4c425efede3/endpoint')
+  axios
+    .get("https://crudcrud.com/api/f695b7eb9a844a62895167846f6975a8/endpoint")
     .then((response) => {
       populateUserList(response.data);
       console.log(response.data);
@@ -65,6 +105,7 @@ function addExp(e) {
   var amountData = parseFloat(amount.value).toFixed(2);
   var descriptionData = description.value;
   var categoryData = category.value;
+  var userId = form.getAttribute("data-id"); // Get the user ID from the form
 
   if (amountData && descriptionData && categoryData) {
     var expense = {
@@ -73,17 +114,34 @@ function addExp(e) {
       category: categoryData,
     };
 
-    axios.post('https://crudcrud.com/api/98728a5fa17c4ccaa3f3a4c425efede3/endpoint', expense)
-      .then((response) => {
-        console.log(response);
-        form.reset();
-        populateUserList(response.data); // Update the expense list with the new expense
-        window.location.reload();
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-      
+    // Check if a user ID is present in the form
+    if (userId) {
+      // User is editing an expense
+      axios
+        .put(`https://crudcrud.com/api/f695b7eb9a844a62895167846f6975a8/endpoint/${userId}`, expense)
+        .then((response) => {
+          console.log(response);
+          form.reset();
+          populateUserList(response.data); // Update the expense list with the edited expense
+          form.removeAttribute("data-id"); // Remove the user ID from the form
+          displayData();
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    } else {
+      // User is adding a new expense
+      axios
+        .post("https://crudcrud.com/api/f695b7eb9a844a62895167846f6975a8/endpoint", expense)
+        .then((response) => {
+          console.log(response);
+          form.reset();
+          populateUserList(response.data); // Update the expense list with the new expense
+          displayData();
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    }
   }
-  
 }
